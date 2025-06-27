@@ -1,16 +1,24 @@
-const { Pool } = require("pg");
+const { Pool } = require('pg');
 
 let pool;
 
 function getPool() {
   if (!pool) {
+    // Parse the DATABASE_URL for individual components
+    const connectionString = process.env.DATABASE_URL;
+    
     pool = new Pool({
-      host: process.env.DB_HOST,
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
+      connectionString: connectionString,
       ssl: { rejectUnauthorized: false },
+      // Serverless-friendly settings
+      max: 1, // Limit connections for serverless
+      idleTimeoutMillis: 0, // Disable timeout
+      connectionTimeoutMillis: 10000, // 10 second timeout
+    });
+
+    // Handle pool errors
+    pool.on('error', (err) => {
+      console.error('Database pool error:', err);
     });
   }
   return pool;
