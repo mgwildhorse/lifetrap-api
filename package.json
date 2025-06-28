@@ -8,7 +8,6 @@
     "pg": "^8.11.3"
   },
   "scripts": {
-    "build": "echo 'No build step required'",
     "start": "echo 'This is a serverless API'"
   }
 }
