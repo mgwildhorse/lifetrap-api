@@ -2,8 +2,13 @@
   "name": "lifetrap-api",
   "version": "1.0.0",
   "dependencies": {
+    "@neondatabase/serverless": "^0.6.0",
     "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3"
+  },
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "start": "echo 'This is a serverless API'"
   }
 }
