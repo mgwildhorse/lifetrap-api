@@ -4,11 +4,20 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL);
 
-function generateUserId() {
-  return "user_" + Math.random().toString(36).substr(2, 12);
-}
-
 export default async function handler(req, res) {
+  // Add CORS headers for all requests
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Handle preflight OPTIONS request
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -19,72 +28,49 @@ export default async function handler(req, res) {
     if (!name || !email || !password) {
       return res
         .status(400)
-        .json({ error: "Name, email, and password required" });
-    }
-
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "Password must be at least 6 characters" });
+        .json({ error: "Name, email and password required" });
     }
 
     // Check if user already exists
     const existingUsers = await sql`
-      SELECT id FROM users WHERE email = ${email} LIMIT 1
+      SELECT id FROM users WHERE email = ${email.toLowerCase()} LIMIT 1
     `;
 
     if (existingUsers.length > 0) {
       return res
         .status(409)
-        .json({ error: "User already exists with this email" });
+        .json({ error: "Account with this email already exists" });
     }
 
     // Hash password
-    const saltRounds = 10;
+    const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create user
-    const userId = generateUserId();
-    const defaultNotifications = JSON.stringify({
-      checkin: true,
-      weekly: true,
-      friends: true,
-      assessments: true,
-    });
-
-    await sql`
-      INSERT INTO users (
-        id, name, email, password_hash, email_verified, 
-        timezone, notifications, created_at, updated_at
-      ) VALUES (
-        ${userId}, ${name}, ${email}, ${passwordHash}, true,
-        'auto', ${defaultNotifications}, NOW(), NOW()
-      )
+    // Insert new user
+    const newUsers = await sql`
+      INSERT INTO users (name, email, password_hash, email_verified, created_at)
+      VALUES (${name}, ${email.toLowerCase()}, ${passwordHash}, true, NOW())
+      RETURNING id, name, email, email_verified, created_at
     `;
+
+    const user = newUsers[0];
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId, email },
+      { userId: user.id, email: user.email },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "7d" }
     );
 
-    // Return user data
     res.status(201).json({
       success: true,
       token,
       user: {
-        id: userId,
-        name,
-        email,
-        email_verified: true,
-        timezone: "auto",
-        notifications: {
-          checkin: true,
-          weekly: true,
-          friends: true,
-          assessments: true,
-        },
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        emailVerified: user.email_verified,
+        createdAt: user.created_at,
       },
     });
   } catch (error) {
