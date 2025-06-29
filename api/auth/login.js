@@ -5,6 +5,19 @@ import { neon } from "@neondatabase/serverless";
 const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
+  // Add CORS headers for all requests
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // Handle preflight OPTIONS request
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -31,7 +44,6 @@ export default async function handler(req, res) {
     const user = users[0];
 
     // For demo purposes, accept any password for test users
-    // In production, you'd verify: await bcrypt.compare(password, user.password_hash)
     const isValidPassword =
       user.email.includes("test@example.com") ||
       (await bcrypt.compare(password, user.password_hash));
